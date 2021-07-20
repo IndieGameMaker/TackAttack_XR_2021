@@ -4,6 +4,7 @@ using UnityEngine;
 using TMPro;
 using Cinemachine;
 using Photon.Pun;
+using Photon.Realtime;
 
 public class TankCtrl : MonoBehaviour, IPunObservable
 {
@@ -80,8 +81,8 @@ public class TankCtrl : MonoBehaviour, IPunObservable
             if (Input.GetMouseButtonDown(0))
             {
                 // 포탄 발사로직
-                Fire();
-                pv.RPC("Fire", RpcTarget.Others, null);
+                Fire(pv.Owner.ActorNumber);
+                pv.RPC("Fire", RpcTarget.Others, pv.Owner.ActorNumber);
             }
         }
         else
@@ -100,9 +101,10 @@ public class TankCtrl : MonoBehaviour, IPunObservable
 
     // RPC (Remote Procedure Call) 원격으로 분리된 다른 PC, 모바일에 탑재된 같은 앱의 특정 함수(Procedure) 호출
     [PunRPC]
-    void Fire()
+    void Fire(int actorNo)
     {
         var cannon = Instantiate(cannonPrefab, firePos.position, firePos.rotation);
+        cannon.GetComponent<Cannon>().actorNumber = actorNo;
         Destroy(cannon, 5.0f);
     }
 
@@ -117,6 +119,18 @@ public class TankCtrl : MonoBehaviour, IPunObservable
             hp -= 20.0f;
             if (hp <= 0.0f)
             {
+                if (pv.IsMine)
+                {
+                    // 포탄 ActorNuber 추출
+                    int actNo = coll.collider.GetComponent<Cannon>().actorNumber;
+                    // ActorNumber를 Player 추출
+                    Player lastShooter = PhotonNetwork.CurrentRoom.GetPlayer(actNo);
+
+                    string msg = $"\n<color=#00ff00>[{pv.Owner.NickName}]</color> is killed by <color=#ff0000>{lastShooter.NickName}</color>";
+
+                    GameObject.Find("GameManager").GetComponent<GameManager>().photonView.RPC("SendChatMessage", RpcTarget.All, msg);
+                }
+
                 StartCoroutine(TankDie());
             }
         }
@@ -132,7 +146,6 @@ public class TankCtrl : MonoBehaviour, IPunObservable
         hp = 100.0f;
         TankVisible(true);
     }
-
 
     void TankVisible(bool visible)
     {

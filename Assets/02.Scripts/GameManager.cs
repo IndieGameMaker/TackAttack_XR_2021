@@ -40,7 +40,7 @@ public class GameManager : MonoBehaviourPunCallbacks
     }
 
     [PunRPC]
-    void SendChatMessage(string msg)
+    public void SendChatMessage(string msg)
     {
         messageText.text += msg;
     }
